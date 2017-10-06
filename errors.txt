@@ -1,0 +1,50 @@
+a) If called on an address not originating from myalloc, the function will
+attempt to set the value of memory objects at memory around that pointer.
+Assuming that the function doesn't crash, which it likely will, the function
+corrupt memory around the location, setting random integer values positive,
+and if coalescing occurs, it will set some values to zero. This will likely
+not affect our memory pool, however, it is bad for the program, and will
+likely cause a crash.
+
+When calling the function on an address contained within a memory block, if
+data exists here the program will attempt to overwrite the data here by
+creating a header and footer that to the program will look like a proper
+header and footer. However, these invalid headers and footers will not be
+padded by surrounding headers and footers, and the data here will be
+corrupted. If the program again is called near this area, it may crash due
+to the corrupted data. If coalescing is called, it will just lead to more
+data corruption within the memory pool, creating headers and footers where
+headers and footers are not meant to be, and creating free memory blocks
+overlapping with actual memory blocks.
+
+If my function is called on already freed memory, nothing is changed, as
+the function only changes negative header and footer values to positive,
+so the positive header and footer values will remain positive (from the
+abs() function). Coalescing should not occur as it has just occurred, so
+none of the adjacent memory blocks will be free, and no surrounding memory
+will be changed or corrupted.
+
+
+b) As for the abuses in part a, for the first abuse, the allocator could
+simply check in the myfree() function that the memory is within the
+constraints of the memory in myalloc. Doing this would be fairly simple;
+The function would check that the given pointer is within the values of
+mem and mem + MEMORY_SIZE, as our memory is initialized one contiguous block.
+If the memory is not within the block, the program can then catch this
+and terminate with corresponding error message.
+
+For the second abuse, the allocator would have to test and see if the value
+is adjacent to a header, and then use this value to calculate the position of
+the corresponding footer. To do this it would count back 4 spots, get the
+integer value, add the absolute value of this integer to the pointer, and
+then get the footer value. It can then compare the computed header and footer
+values, and if they are equal, it can then carry out the remainder of the
+function. If not, it can abort, with corresponding message.
+
+As for the third abuse, our implementation works fine in avoiding and errors
+by simply forcing positive values in the function, which always keeps the
+memory unallocated. However, a more efficient implementation would check to
+see if the value of the header is positive in the first case, and if so, it
+would know that the memory is already freed, so the function could just
+return at this point, or abort if necessary as the function should not be
+called on this type of input.
